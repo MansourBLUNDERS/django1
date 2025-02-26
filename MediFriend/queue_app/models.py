@@ -108,7 +108,6 @@ class Appointment(models.Model):
             if (next_start - current_end).total_seconds() / 60 >= default_duration:
                 return current_end
         
-        # Check after the last appointment
         if day_appointments:
             last_appt = day_appointments.last()
             last_end = last_appt.appointment_time + timedelta(minutes=last_appt.duration)
@@ -116,5 +115,4 @@ class Appointment(models.Model):
             if last_end < end_time:
                 return last_end
         
-        # No slots available today, try tomorrow
         return cls.get_next_available_slot(requested_date + timedelta(days=1), default_duration)

@@ -1,4 +1,3 @@
-# views.py
 import json
 import requests
 from django.http import JsonResponse
@@ -14,10 +13,8 @@ def home(request):
 
 def get_queue(request):
     """API endpoint to get the current appointment queue"""
-    # Get today's date
     today = timezone.now().date()
     
-    # Get all appointments for today and future that aren't cancelled
     appointments = Appointment.objects.filter(
         appointment_time__date__gte=today,
         cancelled=False
@@ -26,7 +23,6 @@ def get_queue(request):
     queue_data = []
     
     for appointment in appointments:
-        # Skip completed appointments if they're not today
         if appointment.completed and appointment.appointment_time.date() != today:
             continue
             
@@ -56,10 +52,8 @@ def add_patient(request):
         try:
             data = json.loads(request.body)
             
-            # Get AI priority
             priority = get_ai_priority(data)
             
-            # Create new patient
             patient = Patient(
                 name=data['name'],
                 email=data['email'],
@@ -73,7 +67,6 @@ def add_patient(request):
             )
             patient.save()
             
-            # Schedule an appointment based on priority
             appointment_time = schedule_appointment(patient, priority)
             
             return JsonResponse({
@@ -142,17 +135,14 @@ def get_ai_priority(data):
     response_data = response.json()
     response_text = response_data['candidates'][0]['content']['parts'][0]['text'].strip()
     
-    # Try different methods to extract priority
     priority = None
     
-    # Method 1: Try to parse entire response as JSON
     try:
         parsed_json = json.loads(response_text)
         priority = parsed_json.get('priority')
     except json.JSONDecodeError:
         pass
     
-    # Method 2: Try to extract JSON using regex
     if priority is None:
         import re
         json_match = re.search(r'\{.*?\}', response_text)
@@ -163,14 +153,12 @@ def get_ai_priority(data):
             except json.JSONDecodeError:
                 pass
     
-    # Method 3: Just extract a number between 1-5
     if priority is None:
         import re
         number_match = re.search(r'\b[1-5]\b', response_text)
         if number_match:
             priority = int(number_match.group(0))
     
-    # Default to 1 if all methods fail
     if priority is None or priority < 1 or priority > 5:
         priority = 1
     
@@ -180,27 +168,20 @@ def schedule_appointment(patient, priority):
     """Schedule an appointment based on priority"""
     today = timezone.now().date()
     
-    # Higher priority (4-5) gets scheduled today if possible
     if priority >= 4:
         appointment_time = Appointment.get_next_available_slot(today)
-    # Medium priority (3) gets scheduled in the next 2 days
     elif priority == 3:
-        # Try today first, then tomorrow
         appointment_time = Appointment.get_next_available_slot(today)
         if appointment_time.date() > today + timedelta(days=1):
-            # If it's already scheduling more than 1 day out, stick with that
             pass
-    # Lower priority (1-2) gets scheduled within a week
+    
     else:
         appointment_time = Appointment.get_next_available_slot(today)
-        # Don't need special handling - the scheduling algorithm will find the next
-        # available slot anyway, which could be today or a future date
-    
-    # Create the appointment
+        
     appointment = Appointment(
         patient=patient,
         appointment_time=appointment_time,
-        duration=60  # Default to 1 hour appointments
+        duration=60  
     )
     appointment.save()
     

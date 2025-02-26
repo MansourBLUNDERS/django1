@@ -1,4 +1,3 @@
-<!-- templates/queue/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,11 +56,11 @@
             border-left: 5px solid #ccc;
             background-color: #f9f9f9;
         }
-        .queue-item.priority-1 { border-left-color: #00BB00; } /* Low priority */
-        .queue-item.priority-2 { border-left-color: #88BB00; } /* Moderate-low priority */
-        .queue-item.priority-3 { border-left-color: #FFCC00; } /* Moderate priority */
-        .queue-item.priority-4 { border-left-color: #FF8800; } /* Moderate-high priority */
-        .queue-item.priority-5 { border-left-color: #FF0000; } /* High priority */
+        .queue-item.priority-1 { border-left-color: #00BB00; } 
+        .queue-item.priority-2 { border-left-color: #88BB00; } 
+        .queue-item.priority-3 { border-left-color: #FFCC00; } 
+        .queue-item.priority-4 { border-left-color: #FF8800; } 
+        .queue-item.priority-5 { border-left-color: #FF0000; } 
         .queue-item.completed { background-color: #e6ffe6; }
         .queue-item.cancelled { background-color: #ffe6e6; text-decoration: line-through; }
         
@@ -165,7 +164,7 @@
     </div>
 
     <script>
-        // Helper function to format dates
+        
         function formatDate(dateString) {
             const date = new Date(dateString);
             return date.toLocaleString('en-US', { 
@@ -178,12 +177,12 @@
             });
         }
         
-        // Helper function to group appointments by date
+        
         function groupAppointmentsByDate(appointments) {
             const groups = {};
             
             appointments.forEach(appointment => {
-                const date = appointment.appointment_time.split(' ')[0]; // Extract date part
+                const date = appointment.appointment_time.split(' ')[0]; 
                 if (!groups[date]) {
                     groups[date] = [];
                 }
@@ -193,20 +192,20 @@
             return groups;
         }
         
-        // Function to show alerts
+        
         function showAlert(message, type = 'error') {
             const alert = document.getElementById('alertMessage');
             alert.textContent = message;
             alert.className = 'alert alert-' + type;
             alert.style.display = 'block';
             
-            // Auto hide after 5 seconds
+            
             setTimeout(() => {
                 alert.style.display = 'none';
             }, 5000);
         }
         
-        // Function to handle appointment actions (complete/cancel)
+        
         function handleAppointmentAction(appointmentId, action) {
             const actionText = action === 'complete' ? 'completing' : 'cancelling';
             
@@ -237,7 +236,7 @@
             });
         }
         
-        // Function to refresh the queue display
+        
         function refreshQueue() {
             fetch('/api/queue/')
                 .then(response => {
@@ -255,18 +254,18 @@
                         return;
                     }
                     
-                    // Group appointments by date
+                    
                     const groupedAppointments = groupAppointmentsByDate(data.queue);
                     
-                    // Loop through each date
+                    
                     Object.keys(groupedAppointments).sort().forEach(date => {
                         const appointments = groupedAppointments[date];
                         
-                        // Add date header
+                        
                         const dateHeader = document.createElement('div');
                         dateHeader.className = 'date-display';
                         
-                        // Format date for display
+                        
                         const [year, month, day] = date.split('-');
                         const dateObj = new Date(year, month - 1, day);
                         dateHeader.textContent = dateObj.toLocaleDateString('en-US', { 
@@ -277,7 +276,7 @@
                         });
                         queueList.appendChild(dateHeader);
                         
-                        // Add appointments for this date
+                        
                         appointments.forEach(appointment => {
                             const queueItem = document.createElement('div');
                             queueItem.className = `queue-item priority-${appointment.priority}`;
@@ -288,10 +287,10 @@
                                 queueItem.className += ' cancelled';
                             }
                             
-                            // Format the appointment time for display
+                            
                             const formattedTime = formatDate(appointment.appointment_time);
                             
-                            // Create the appointment content
+                            
                             queueItem.innerHTML = `
                                 <div><strong>${appointment.name}</strong> (Priority: ${appointment.priority})</div>
                                 <div><strong>Time:</strong> ${formattedTime}</div>
@@ -300,7 +299,7 @@
                                 <div><strong>Notes:</strong> ${appointment.description}</div>
                             `;
                             
-                            // Add action buttons if not completed or cancelled
+                            
                             if (!appointment.completed && !appointment.cancelled) {
                                 const actionButtons = document.createElement('div');
                                 actionButtons.className = 'action-buttons';
@@ -338,13 +337,10 @@
                 });
         }
         
-        // Initial queue load
         document.addEventListener('DOMContentLoaded', refreshQueue);
         
-        // Refresh button handler
         document.getElementById('refreshBtn').addEventListener('click', refreshQueue);
         
-        // Form submission
         document.getElementById('patientForm').addEventListener('submit', function(event) {
             event.preventDefault();
             
@@ -378,13 +374,11 @@
             })
             .then(data => {
                 if (data.success) {
-                    // Reset form
                     document.getElementById('patientForm').reset();
                     
-                    // Show success message
                     showAlert(`Patient added successfully with priority ${data.priority}. Appointment scheduled for ${formatDate(data.appointment_time)}.`, 'success');
                     
-                    // Refresh queue
+
                     refreshQueue();
                 } else {
                     showAlert('Error: ' + data.error);
@@ -400,7 +394,6 @@
             });
         });
         
-        // Auto-refresh queue every 60 seconds
         setInterval(refreshQueue, 60000);
     </script>
 </body>
