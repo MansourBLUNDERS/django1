@@ -6,92 +6,141 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Queue Management</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .container { max-width: 800px; margin: auto; }
-        input, select, textarea, button { width: 100%; margin: 10px 0; padding: 8px; }
-        .queue { margin-top: 20px; border-top: 2px solid #333; padding-top: 10px; }
-        li { margin-bottom: 10px; padding: 10px; border-left: 5px solid #ccc; }
-        li[data-priority="1"] { border-left-color: #00FF00; }
-        li[data-priority="2"] { border-left-color: #AAFF00; }
-        li[data-priority="3"] { border-left-color: #FFFF00; }
-        li[data-priority="4"] { border-left-color: #FFAA00; }
-        li[data-priority="5"] { border-left-color: #FF0000; }
-        
-        .refresh-btn {
-            background-color: #4CAF50;
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        input, select, textarea { 
+            width: 100%; 
+            margin: 10px 0; 
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button { 
+            width: 100%; 
+            margin: 10px 0; 
+            padding: 12px;
+            background-color: #4a90e2;
             color: white;
             border: none;
-            padding: 8px 16px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            margin: 10px 2px;
-            cursor: pointer;
             border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #3a80d2;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .queue { 
+            margin-top: 30px; 
+            border-top: 2px solid #eee; 
+            padding-top: 20px; 
+        }
+        .queue-item { 
+            margin-bottom: 15px; 
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 5px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .queue-item.priority-1 { border-left-color: #00BB00; } /* Low priority */
+        .queue-item.priority-2 { border-left-color: #88BB00; } /* Moderate-low priority */
+        .queue-item.priority-3 { border-left-color: #FFCC00; } /* Moderate priority */
+        .queue-item.priority-4 { border-left-color: #FF8800; } /* Moderate-high priority */
+        .queue-item.priority-5 { border-left-color: #FF0000; } /* High priority */
+        .queue-item.completed { background-color: #e6ffe6; }
+        .queue-item.cancelled { background-color: #ffe6e6; text-decoration: line-through; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .action-buttons button {
+            flex: 1;
+            padding: 8px;
+            margin: 0;
+        }
+        
+        .complete-btn {
+            background-color: #4CAF50;
+        }
+        
+        .cancel-btn {
+            background-color: #f44336;
         }
         
         .alert {
-            padding: 10px;
-            background-color: #f44336;
-            color: white;
+            padding: 12px;
             margin-bottom: 15px;
+            border-radius: 4px;
             display: none;
         }
         
-        .status-buttons {
-            margin-top: 10px;
-            display: flex;
-            gap: 5px;
+        .alert-error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
         }
         
-        .status-btn {
-            padding: 4px 8px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.9em;
+        .alert-success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
         }
         
-        .complete-btn { background-color: #4CAF50; color: white; }
-        .cancel-btn { background-color: #f44336; color: white; }
-        
-        .patient-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
         }
         
-        .patient-index {
+        .date-display {
             font-weight: bold;
-            margin-right: 10px;
-            color: #666;
+            margin: 20px 0 10px 0;
+            padding: 5px;
+            background-color: #eee;
+            border-radius: 4px;
         }
-        .time-slot {
-        font-size: 0.9em;
-        margin-left: 15px;
-        padding: 3px 6px;
-        border-radius: 4px;
-    }
-    .today {
-        background-color: #4CAF50;
-        color: white;
-    }
-    .future {
-        background-color: #2196F3;
-        color: white;
-    }
+        
+        .no-appointments {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .refresh-btn {
+            background-color: #4CAF50;
+            margin-left: 10px;
+            width: auto;
+            padding: 8px 16px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Patient Registration</h2>   
-        <div id="errorAlert" class="alert"></div>
+        <h2>Patient Registration</h2>
+        <div id="alertMessage" class="alert"></div>
         <form id="patientForm">
             <input type="text" id="name" placeholder="Full Name" required>
+            <input type="email" id="email" placeholder="Email" required>
             <input type="number" id="age" placeholder="Age" required>
-            
             <select id="cancerStage" required>
                 <option value="">Select Cancer Stage</option>
                 <option value="1">Stage 1</option>
@@ -99,37 +148,102 @@
                 <option value="3">Stage 3</option>
                 <option value="4">Stage 4</option>
             </select>
-            <input type="email" id="email" placeholder="Email" required>    
             <input type="number" id="temp" step="0.1" placeholder="Temperature (°C)" required>
             <input type="number" id="heart" step="1" placeholder="Heart Rate (bpm)" required>
-            <input type="number" id="blood" placeholder="Blood Pressure (e.g. 120/80)" >
+            <input type="text" id="blood" placeholder="Blood Pressure (e.g. 120/80)" required>
             <textarea id="description" placeholder="Patient Description" required></textarea>
-            <button type="submit">Submit</button>
+            <button type="submit" id="submitBtn">Register Patient</button>
         </form>
 
         <div class="queue">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>Current Treatment Queue</h2>
-                <button id="refreshBtn" class="refresh-btn">Refresh Queue</button>
+                <h2>Appointment Queue</h2>
+                <button id="refreshBtn" class="refresh-btn">Refresh</button>
             </div>
-            <ul id="queueList"></ul>
+            <div id="queueList"></div>
         </div>
     </div>
 
     <script>
-        function showError(message) {
-            const alert = document.getElementById('errorAlert');
+        // Helper function to format dates
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', { 
+                weekday: 'short',
+                month: 'short', 
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
+            });
+        }
+        
+        // Helper function to group appointments by date
+        function groupAppointmentsByDate(appointments) {
+            const groups = {};
+            
+            appointments.forEach(appointment => {
+                const date = appointment.appointment_time.split(' ')[0]; // Extract date part
+                if (!groups[date]) {
+                    groups[date] = [];
+                }
+                groups[date].push(appointment);
+            });
+            
+            return groups;
+        }
+        
+        // Function to show alerts
+        function showAlert(message, type = 'error') {
+            const alert = document.getElementById('alertMessage');
             alert.textContent = message;
+            alert.className = 'alert alert-' + type;
             alert.style.display = 'block';
+            
+            // Auto hide after 5 seconds
             setTimeout(() => {
                 alert.style.display = 'none';
             }, 5000);
         }
-
+        
+        // Function to handle appointment actions (complete/cancel)
+        function handleAppointmentAction(appointmentId, action) {
+            const actionText = action === 'complete' ? 'completing' : 'cancelling';
+            
+            fetch(`/api/appointments/${appointmentId}/update/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: action })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error ${actionText} appointment`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    refreshQueue();
+                } else {
+                    showAlert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Failed to update appointment: ' + error.message);
+            });
+        }
+        
+        // Function to refresh the queue display
         function refreshQueue() {
             fetch('/api/queue/')
                 .then(response => {
-                    if (!response.ok) throw new Error('Failed to fetch queue data');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch queue data');
+                    }
                     return response.json();
                 })
                 .then(data => {
@@ -137,92 +251,104 @@
                     queueList.innerHTML = '';
                     
                     if (data.queue.length === 0) {
-                        queueList.innerHTML = '<li>No patients in queue</li>';
+                        queueList.innerHTML = '<div class="no-appointments">No appointments scheduled</div>';
                         return;
                     }
                     
-                    data.queue.forEach(patient => {
-                        const listItem = document.createElement('li');
-                        listItem.setAttribute('data-priority', patient.priority);
-                        listItem.innerHTML = `
-                            <div class="patient-header">
-                                <div>
-            <span class="patient-index">#${patient.index}</span>
-            <strong>${patient.name}</strong> 
-            <span class="time-slot ${patient.is_today ? 'today' : 'future'}">
-                ${patient.time_slot}
-            </span>
-        </div>
-                                <div>
-                                    <span class="patient-index">#${patient.index}</span>
-                                    <strong>${patient.name}</strong> (Priority: ${patient.priority})
-                                </div>
-                                <div class="status-buttons">
-                                    <button class="status-btn complete-btn" 
-                                            onclick="updateStatus(${patient.id}, 'completed')">
-                                        Mark Completed
-                                    </button>
-                                    <button class="status-btn cancel-btn" 
-                                            onclick="updateStatus(${patient.id}, 'canceled')">
-                                        Cancel Appointment
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                Email: ${patient.email}<br>
-                                Age: ${patient.age} | Cancer Stage: ${patient.cancer_stage}<br>
-                                Temp: ${patient.temperature}°C | HR: ${patient.heart_rate} bpm | BP: ${patient.blood_pressure}<br>
-                                Notes: ${patient.description}<br>
-                                <small>Added: ${patient.created_at}</small>
-                            </div>
-                        `;
-                        queueList.appendChild(listItem);
+                    // Group appointments by date
+                    const groupedAppointments = groupAppointmentsByDate(data.queue);
+                    
+                    // Loop through each date
+                    Object.keys(groupedAppointments).sort().forEach(date => {
+                        const appointments = groupedAppointments[date];
+                        
+                        // Add date header
+                        const dateHeader = document.createElement('div');
+                        dateHeader.className = 'date-display';
+                        
+                        // Format date for display
+                        const [year, month, day] = date.split('-');
+                        const dateObj = new Date(year, month - 1, day);
+                        dateHeader.textContent = dateObj.toLocaleDateString('en-US', { 
+                            weekday: 'long',
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric'
+                        });
+                        queueList.appendChild(dateHeader);
+                        
+                        // Add appointments for this date
+                        appointments.forEach(appointment => {
+                            const queueItem = document.createElement('div');
+                            queueItem.className = `queue-item priority-${appointment.priority}`;
+                            
+                            if (appointment.completed) {
+                                queueItem.className += ' completed';
+                            } else if (appointment.cancelled) {
+                                queueItem.className += ' cancelled';
+                            }
+                            
+                            // Format the appointment time for display
+                            const formattedTime = formatDate(appointment.appointment_time);
+                            
+                            // Create the appointment content
+                            queueItem.innerHTML = `
+                                <div><strong>${appointment.name}</strong> (Priority: ${appointment.priority})</div>
+                                <div><strong>Time:</strong> ${formattedTime}</div>
+                                <div><strong>Details:</strong> Age: ${appointment.age} | Cancer Stage: ${appointment.cancer_stage} | 
+                                Temp: ${appointment.temperature}°C | HR: ${appointment.heart_rate} bpm | BP: ${appointment.blood_pressure}</div>
+                                <div><strong>Notes:</strong> ${appointment.description}</div>
+                            `;
+                            
+                            // Add action buttons if not completed or cancelled
+                            if (!appointment.completed && !appointment.cancelled) {
+                                const actionButtons = document.createElement('div');
+                                actionButtons.className = 'action-buttons';
+                                
+                                const completeBtn = document.createElement('button');
+                                completeBtn.className = 'complete-btn';
+                                completeBtn.textContent = 'Complete';
+                                completeBtn.addEventListener('click', () => {
+                                    handleAppointmentAction(appointment.id, 'complete');
+                                });
+                                
+                                const cancelBtn = document.createElement('button');
+                                cancelBtn.className = 'cancel-btn';
+                                cancelBtn.textContent = 'Cancel';
+                                cancelBtn.addEventListener('click', () => {
+                                    handleAppointmentAction(appointment.id, 'cancel');
+                                });
+                                
+                                actionButtons.appendChild(completeBtn);
+                                actionButtons.appendChild(cancelBtn);
+                                queueItem.appendChild(actionButtons);
+                            } else if (appointment.completed) {
+                                queueItem.innerHTML += '<div><strong>Status:</strong> Completed</div>';
+                            } else if (appointment.cancelled) {
+                                queueItem.innerHTML += '<div><strong>Status:</strong> Cancelled</div>';
+                            }
+                            
+                            queueList.appendChild(queueItem);
+                        });
                     });
                 })
                 .catch(error => {
                     console.error('Error fetching queue:', error);
-                    showError('Failed to load queue data: ' + error.message);
+                    showAlert('Failed to load queue data: ' + error.message);
                 });
         }
-
-        function updateStatus(patientId, newStatus) {
-    fetch('/api/update-status/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            patient_id: patientId,
-            status: newStatus
-        })
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Status update failed');
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            refreshQueue();
-            showError(`Status updated successfully`);
-        }
-    })
-    .catch(error => {
-        console.error('Error updating status:', error);
-        showError('Failed to update status: ' + error.message);
-    });
-}
-
+        
         // Initial queue load
         document.addEventListener('DOMContentLoaded', refreshQueue);
         
-        // Refresh button click
+        // Refresh button handler
         document.getElementById('refreshBtn').addEventListener('click', refreshQueue);
         
         // Form submission
         document.getElementById('patientForm').addEventListener('submit', function(event) {
             event.preventDefault();
             
-            const submitBtn = this.querySelector('button[type="submit"]');
+            const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
             
@@ -245,25 +371,32 @@
                 body: JSON.stringify(patientData)
             })
             .then(response => {
-                if (!response.ok) throw new Error('Failed to add patient');
+                if (!response.ok) {
+                    throw new Error('Failed to add patient');
+                }
                 return response.json();
             })
             .then(data => {
                 if (data.success) {
+                    // Reset form
                     document.getElementById('patientForm').reset();
-                    showError(`Patient added successfully with priority ${data.priority}`);
+                    
+                    // Show success message
+                    showAlert(`Patient added successfully with priority ${data.priority}. Appointment scheduled for ${formatDate(data.appointment_time)}.`, 'success');
+                    
+                    // Refresh queue
                     refreshQueue();
                 } else {
-                    showError('Error: ' + data.error);
+                    showAlert('Error: ' + data.error);
                 }
             })
             .catch(error => {
                 console.error('Error adding patient:', error);
-                showError('Failed to add patient: ' + error.message);
+                showAlert('Failed to add patient: ' + error.message);
             })
             .finally(() => {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit';
+                submitBtn.textContent = 'Register Patient';
             });
         });
         

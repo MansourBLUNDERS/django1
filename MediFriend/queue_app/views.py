@@ -3,48 +3,55 @@ import json
 import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render
-from .models import Patient
+from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
+from .models import Patient, Appointment
 
 def home(request):
-    """Render the main page with the patient form and queue"""
+    """Render the main page with the patient form and appointment queue"""
     return render(request, 'queue/index.html')
 
 def get_queue(request):
-    """API endpoint to get the current queue sorted by priority"""
-    patients = Patient.objects.filter(status='pending').order_by('-priority', 'created_at')
+    """API endpoint to get the current appointment queue"""
+    # Get today's date
+    today = timezone.now().date()
+    
+    # Get all appointments for today and future that aren't cancelled
+    appointments = Appointment.objects.filter(
+        appointment_time__date__gte=today,
+        cancelled=False
+    ).select_related('patient').order_by('appointment_time')
+    
     queue_data = []
     
-    for index, patient in enumerate(patients, start=1):
-        time_slot = patient.calculate_time_slot(index)
+    for appointment in appointments:
+        # Skip completed appointments if they're not today
+        if appointment.completed and appointment.appointment_time.date() != today:
+            continue
+            
         queue_data.append({
-            'id': patient.id,
-            'index': index,
-            'name': patient.name,
-            'email': patient.email,
-            'age': patient.age,
-            'cancer_stage': patient.cancer_stage,
-            'temperature': patient.temperature,
-            'heart_rate': patient.heart_rate,
-            'blood_pressure': patient.blood_pressure,
-            'description': patient.description,
-            'priority': patient.priority,
-            'created_at': patient.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            'status': patient.status,
-            'time_slot': time_slot.strftime("%Y-%m-%d %H:%M"),
-            'is_today': time_slot.date() == timezone.now().date()
+            'id': appointment.id,
+            'patient_id': appointment.patient.id,
+            'name': appointment.patient.name,
+            'email': appointment.patient.email,
+            'age': appointment.patient.age,
+            'cancer_stage': appointment.patient.cancer_stage,
+            'temperature': appointment.patient.temperature,
+            'heart_rate': appointment.patient.heart_rate,
+            'blood_pressure': appointment.patient.blood_pressure,
+            'description': appointment.patient.description,
+            'priority': appointment.patient.priority,
+            'appointment_time': appointment.appointment_time.strftime("%Y-%m-%d %H:%M"),
+            'completed': appointment.completed,
+            'cancelled': appointment.cancelled
         })
     
     return JsonResponse({'queue': queue_data})
-    
-
-
 
 @csrf_exempt
 def add_patient(request):
-    """API endpoint to add a new patient and get AI priority"""
+    """API endpoint to add a new patient and schedule appointment"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -66,12 +73,39 @@ def add_patient(request):
             )
             patient.save()
             
+            # Schedule an appointment based on priority
+            appointment_time = schedule_appointment(patient, priority)
+            
             return JsonResponse({
                 'success': True, 
                 'priority': priority,
-                'id': patient.id
+                'patient_id': patient.id,
+                'appointment_time': appointment_time.strftime("%Y-%m-%d %H:%M")
             })
             
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def update_appointment(request, appointment_id):
+    """API endpoint to mark appointment as completed or cancelled"""
+    if request.method == 'POST':
+        try:
+            appointment = get_object_or_404(Appointment, id=appointment_id)
+            data = json.loads(request.body)
+            action = data.get('action')
+            
+            if action == 'complete':
+                appointment.mark_completed()
+                return JsonResponse({'success': True, 'message': 'Appointment marked as completed'})
+            elif action == 'cancel':
+                appointment.cancel()
+                return JsonResponse({'success': True, 'message': 'Appointment cancelled and queue rescheduled'})
+            else:
+                return JsonResponse({'success': False, 'error': 'Invalid action'}, status=400)
+                
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
     
@@ -142,37 +176,32 @@ def get_ai_priority(data):
     
     return priority
 
-
-
-
-@csrf_exempt
-def update_status(request):
-    """API endpoint to update patient status"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            patient = Patient.objects.get(id=data['patient_id'])
-            old_status = patient.status
-            patient.status = data['status']
-            patient.save()
-            
-            if data['status'] == 'completed':
-                # For completions, no need to adjust time slots
-                pass
-            elif data['status'] == 'canceled':
-                # For cancellations, shift subsequent patients forward
-                subsequent_patients = Patient.objects.filter(
-                    status='pending',
-                    priority=patient.priority,
-                    created_at__gt=patient.created_at
-                ).order_by('created_at')
-                
-                # Update time slots for subsequent patients
-                for subsequent_patient in subsequent_patients:
-                    subsequent_patient.created_at = subsequent_patient.created_at - timedelta(hours=1)
-                    subsequent_patient.save()
-            
-            return JsonResponse({'success': True})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=400)
-    return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+def schedule_appointment(patient, priority):
+    """Schedule an appointment based on priority"""
+    today = timezone.now().date()
+    
+    # Higher priority (4-5) gets scheduled today if possible
+    if priority >= 4:
+        appointment_time = Appointment.get_next_available_slot(today)
+    # Medium priority (3) gets scheduled in the next 2 days
+    elif priority == 3:
+        # Try today first, then tomorrow
+        appointment_time = Appointment.get_next_available_slot(today)
+        if appointment_time.date() > today + timedelta(days=1):
+            # If it's already scheduling more than 1 day out, stick with that
+            pass
+    # Lower priority (1-2) gets scheduled within a week
+    else:
+        appointment_time = Appointment.get_next_available_slot(today)
+        # Don't need special handling - the scheduling algorithm will find the next
+        # available slot anyway, which could be today or a future date
+    
+    # Create the appointment
+    appointment = Appointment(
+        patient=patient,
+        appointment_time=appointment_time,
+        duration=60  # Default to 1 hour appointments
+    )
+    appointment.save()
+    
+    return appointment_time
