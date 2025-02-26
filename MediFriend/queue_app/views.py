@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from .models import Patient
+from django.utils import timezone
+from datetime import timedelta
 
 def home(request):
     """Render the main page with the patient form and queue"""
@@ -16,6 +18,7 @@ def get_queue(request):
     queue_data = []
     
     for index, patient in enumerate(patients, start=1):
+        time_slot = patient.calculate_time_slot(index)
         queue_data.append({
             'id': patient.id,
             'index': index,
@@ -29,10 +32,13 @@ def get_queue(request):
             'description': patient.description,
             'priority': patient.priority,
             'created_at': patient.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            'status': patient.status
+            'status': patient.status,
+            'time_slot': time_slot.strftime("%Y-%m-%d %H:%M"),
+            'is_today': time_slot.date() == timezone.now().date()
         })
     
     return JsonResponse({'queue': queue_data})
+    
 
 
 
@@ -137,6 +143,8 @@ def get_ai_priority(data):
     return priority
 
 
+
+
 @csrf_exempt
 def update_status(request):
     """API endpoint to update patient status"""
@@ -144,8 +152,26 @@ def update_status(request):
         try:
             data = json.loads(request.body)
             patient = Patient.objects.get(id=data['patient_id'])
+            old_status = patient.status
             patient.status = data['status']
             patient.save()
+            
+            if data['status'] == 'completed':
+                # For completions, no need to adjust time slots
+                pass
+            elif data['status'] == 'canceled':
+                # For cancellations, shift subsequent patients forward
+                subsequent_patients = Patient.objects.filter(
+                    status='pending',
+                    priority=patient.priority,
+                    created_at__gt=patient.created_at
+                ).order_by('created_at')
+                
+                # Update time slots for subsequent patients
+                for subsequent_patient in subsequent_patients:
+                    subsequent_patient.created_at = subsequent_patient.created_at - timedelta(hours=1)
+                    subsequent_patient.save()
+            
             return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)

@@ -68,11 +68,25 @@
             margin-right: 10px;
             color: #666;
         }
+        .time-slot {
+        font-size: 0.9em;
+        margin-left: 15px;
+        padding: 3px 6px;
+        border-radius: 4px;
+    }
+    .today {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .future {
+        background-color: #2196F3;
+        color: white;
+    }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Patient Registration</h2>
+        <h2>Patient Registration</h2>   
         <div id="errorAlert" class="alert"></div>
         <form id="patientForm">
             <input type="text" id="name" placeholder="Full Name" required>
@@ -88,7 +102,7 @@
             <input type="email" id="email" placeholder="Email" required>    
             <input type="number" id="temp" step="0.1" placeholder="Temperature (°C)" required>
             <input type="number" id="heart" step="1" placeholder="Heart Rate (bpm)" required>
-            <input type="number" id="blood" placeholder="Blood Pressure (e.g. 120/80)" required>
+            <input type="number" id="blood" placeholder="Blood Pressure (e.g. 120/80)" >
             <textarea id="description" placeholder="Patient Description" required></textarea>
             <button type="submit">Submit</button>
         </form>
@@ -133,6 +147,13 @@
                         listItem.innerHTML = `
                             <div class="patient-header">
                                 <div>
+            <span class="patient-index">#${patient.index}</span>
+            <strong>${patient.name}</strong> 
+            <span class="time-slot ${patient.is_today ? 'today' : 'future'}">
+                ${patient.time_slot}
+            </span>
+        </div>
+                                <div>
                                     <span class="patient-index">#${patient.index}</span>
                                     <strong>${patient.name}</strong> (Priority: ${patient.priority})
                                 </div>
@@ -165,31 +186,31 @@
         }
 
         function updateStatus(patientId, newStatus) {
-            fetch('/api/update-status/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    patient_id: patientId,
-                    status: newStatus
-                })
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Status update failed');
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    refreshQueue();
-                    showError(`Status updated successfully`);
-                }
-            })
-            .catch(error => {
-                console.error('Error updating status:', error);
-                showError('Failed to update status: ' + error.message);
-            });
+    fetch('/api/update-status/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            patient_id: patientId,
+            status: newStatus
+        })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Status update failed');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            refreshQueue();
+            showError(`Status updated successfully`);
         }
+    })
+    .catch(error => {
+        console.error('Error updating status:', error);
+        showError('Failed to update status: ' + error.message);
+    });
+}
 
         // Initial queue load
         document.addEventListener('DOMContentLoaded', refreshQueue);
