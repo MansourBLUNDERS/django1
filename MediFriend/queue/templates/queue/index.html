@@ -1,0 +1,253 @@
+<!-- templates/queue/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Queue Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        input, select, textarea, button { width: 100%; margin: 10px 0; padding: 8px; }
+        .queue { margin-top: 20px; border-top: 2px solid #333; padding-top: 10px; }
+        li { margin-bottom: 10px; padding: 10px; border-left: 5px solid #ccc; }
+        li[data-priority="1"] { border-left-color: #00FF00; }
+        li[data-priority="2"] { border-left-color: #AAFF00; }
+        li[data-priority="3"] { border-left-color: #FFFF00; }
+        li[data-priority="4"] { border-left-color: #FFAA00; }
+        li[data-priority="5"] { border-left-color: #FF0000; }
+        
+        .refresh-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .alert {
+            padding: 10px;
+            background-color: #f44336;
+            color: white;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .status-buttons {
+            margin-top: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        
+        .status-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .complete-btn { background-color: #4CAF50; color: white; }
+        .cancel-btn { background-color: #f44336; color: white; }
+        
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .patient-index {
+            font-weight: bold;
+            margin-right: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Patient Registration</h2>
+        <div id="errorAlert" class="alert"></div>
+        <form id="patientForm">
+            <input type="text" id="name" placeholder="Full Name" required>
+            <input type="number" id="age" placeholder="Age" required>
+            
+            <select id="cancerStage" required>
+                <option value="">Select Cancer Stage</option>
+                <option value="1">Stage 1</option>
+                <option value="2">Stage 2</option>
+                <option value="3">Stage 3</option>
+                <option value="4">Stage 4</option>
+            </select>
+            <input type="email" id="email" placeholder="Email" required>    
+            <input type="number" id="temp" step="0.1" placeholder="Temperature (°C)" required>
+            <input type="number" id="heart" step="1" placeholder="Heart Rate (bpm)" required>
+            <input type="number" id="blood" placeholder="Blood Pressure (e.g. 120/80)" required>
+            <textarea id="description" placeholder="Patient Description" required></textarea>
+            <button type="submit">Submit</button>
+        </form>
+
+        <div class="queue">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Current Treatment Queue</h2>
+                <button id="refreshBtn" class="refresh-btn">Refresh Queue</button>
+            </div>
+            <ul id="queueList"></ul>
+        </div>
+    </div>
+
+    <script>
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            alert.textContent = message;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        function refreshQueue() {
+            fetch('/api/queue/')
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch queue data');
+                    return response.json();
+                })
+                .then(data => {
+                    const queueList = document.getElementById('queueList');
+                    queueList.innerHTML = '';
+                    
+                    if (data.queue.length === 0) {
+                        queueList.innerHTML = '<li>No patients in queue</li>';
+                        return;
+                    }
+                    
+                    data.queue.forEach(patient => {
+                        const listItem = document.createElement('li');
+                        listItem.setAttribute('data-priority', patient.priority);
+                        listItem.innerHTML = `
+                            <div class="patient-header">
+                                <div>
+                                    <span class="patient-index">#${patient.index}</span>
+                                    <strong>${patient.name}</strong> (Priority: ${patient.priority})
+                                </div>
+                                <div class="status-buttons">
+                                    <button class="status-btn complete-btn" 
+                                            onclick="updateStatus(${patient.id}, 'completed')">
+                                        Mark Completed
+                                    </button>
+                                    <button class="status-btn cancel-btn" 
+                                            onclick="updateStatus(${patient.id}, 'canceled')">
+                                        Cancel Appointment
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                Email: ${patient.email}<br>
+                                Age: ${patient.age} | Cancer Stage: ${patient.cancer_stage}<br>
+                                Temp: ${patient.temperature}°C | HR: ${patient.heart_rate} bpm | BP: ${patient.blood_pressure}<br>
+                                Notes: ${patient.description}<br>
+                                <small>Added: ${patient.created_at}</small>
+                            </div>
+                        `;
+                        queueList.appendChild(listItem);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching queue:', error);
+                    showError('Failed to load queue data: ' + error.message);
+                });
+        }
+
+        function updateStatus(patientId, newStatus) {
+            fetch('/api/update-status/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    patient_id: patientId,
+                    status: newStatus
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Status update failed');
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    refreshQueue();
+                    showError(`Status updated successfully`);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating status:', error);
+                showError('Failed to update status: ' + error.message);
+            });
+        }
+
+        // Initial queue load
+        document.addEventListener('DOMContentLoaded', refreshQueue);
+        
+        // Refresh button click
+        document.getElementById('refreshBtn').addEventListener('click', refreshQueue);
+        
+        // Form submission
+        document.getElementById('patientForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            
+            const patientData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                age: document.getElementById('age').value,
+                cancerStage: document.getElementById('cancerStage').value,
+                temp: document.getElementById('temp').value,
+                heart: document.getElementById('heart').value,
+                blood: document.getElementById('blood').value,
+                description: document.getElementById('description').value
+            };
+            
+            fetch('/api/add-patient/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(patientData)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to add patient');
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('patientForm').reset();
+                    showError(`Patient added successfully with priority ${data.priority}`);
+                    refreshQueue();
+                } else {
+                    showError('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error adding patient:', error);
+                showError('Failed to add patient: ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit';
+            });
+        });
+        
+        // Auto-refresh queue every 60 seconds
+        setInterval(refreshQueue, 60000);
+    </script>
+</body>
+</html>
